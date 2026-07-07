@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de contraseñas</title>
+<style>
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: local('JetBrains Mono');
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0D1117;
+    --panel: #161B22;
+    --panel-border: #21262D;
+    --accent: #39D353;
+    --accent-dim: #1F6B2E;
+    --text: #C9D1D9;
+    --text-dim: #6E7681;
+    --weak: #F85149;
+    --mid: #D29922;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 32px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    color: var(--text);
+  }
+
+  .output-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  #output {
+    flex: 1;
+    background: #010409;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px 12px;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--panel-border);
+    background: #21262D;
+    color: var(--text);
+    border-radius: 4px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  button:hover { background: #2D333B; }
+
+  #copy-btn {
+    padding: 0 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  #copy-btn.copied {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .meter-track {
+    height: 4px;
+    background: #21262D;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--weak);
+    transition: width 0.2s, background 0.2s;
+  }
+
+  .meter-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  .field-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 8px;
+    color: var(--text-dim);
+  }
+
+  .field-header span.value {
+    color: var(--text);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  .checks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .check input {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+
+  #generate-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: #E6FCE9;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  #generate-btn:hover {
+    background: #257A38;
+  }
+
+  .error-msg {
+    font-size: 12px;
+    color: var(--weak);
+    margin-top: 10px;
+    min-height: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="eyebrow">// generador local</div>
+  <h1>Contraseña aleatoria</h1>
+
+  <div class="output-row">
+    <div id="output">••••••••••••••••</div>
+    <button id="copy-btn">Copiar</button>
+  </div>
+  <div class="meter-track"><div class="meter-fill" id="meter"></div></div>
+  <div class="meter-label" id="meter-label">Entropía: —</div>
+
+  <div class="field">
+    <div class="field-header">
+      <span>Longitud</span>
+      <span class="value" id="length-value">16</span>
+    </div>
+    <input type="range" id="length" min="4" max="64" value="16">
+  </div>
+
+  <div class="checks">
+    <label class="check">
+      <input type="checkbox" id="lower" checked>
+      Minúsculas (a-z)
+    </label>
+    <label class="check">
+      <input type="checkbox" id="upper" checked>
+      Mayúsculas (A-Z)
+    </label>
+    <label class="check">
+      <input type="checkbox" id="numbers" checked>
+      Números (0-9)
+    </label>
+    <label class="check">
+      <input type="checkbox" id="symbols">
+      Símbolos (!@#$…)
+    </label>
+  </div>
+
+  <button id="generate-btn">Generar</button>
+  <div class="error-msg" id="error"></div>
+</div>
+
+<script>
+  const SETS = {
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    numbers: '0123456789',
+    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+  };
+
+  const lengthInput = document.getElementById('length');
+  const lengthValue = document.getElementById('length-value');
+  const output = document.getElementById('output');
+  const copyBtn = document.getElementById('copy-btn');
+  const generateBtn = document.getElementById('generate-btn');
+  const errorMsg = document.getElementById('error');
+  const meter = document.getElementById('meter');
+  const meterLabel = document.getElementById('meter-label');
+
+  const checks = {
+    lower: document.getElementById('lower'),
+    upper: document.getElementById('upper'),
+    numbers: document.getElementById('numbers'),
+    symbols: document.getElementById('symbols')
+  };
+
+  lengthInput.addEventListener('input', () => {
+    lengthValue.textContent = lengthInput.value;
+  });
+
+  function buildPool() {
+    let pool = '';
+    for (const key in checks) {
+      if (checks[key].checked) pool += SETS[key];
+    }
+    return pool;
+  }
+
+  function secureRandomInt(max) {
+    const arr = new Uint32Array(1);
+    const limit = Math.floor(0xFFFFFFFF / max) * max;
+    let val;
+    do {
+      crypto.getRandomValues(arr);
+      val = arr[0];
+    } while (val >= limit);
+    return val % max;
+  }
+
+  function generatePassword() {
+    const pool = buildPool();
+    errorMsg.textContent = '';
+
+    if (pool.length === 0) {
+      errorMsg.textContent = 'Selecciona al menos un tipo de carácter.';
+      return null;
+    }
+
+    const length = parseInt(lengthInput.value, 10);
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += pool[secureRandomInt(pool.length)];
+    }
+    return { password: result, poolSize: pool.length, length };
+  }
+
+  function updateMeter(poolSize, length) {
+    const entropyBits = length * Math.log2(poolSize || 1);
+    const pct = Math.min(100, (entropyBits / 128) * 100);
+    meter.style.width = pct + '%';
+
+    let label, color;
+    if (entropyBits < 40) { label = 'débil'; color = 'var(--weak)'; }
+    else if (entropyBits < 80) { label = 'moderada'; color = 'var(--mid)'; }
+    else { label = 'fuerte'; color = 'var(--accent)'; }
+
+    meter.style.background = color;
+    meterLabel.textContent = `Entropía: ${Math.round(entropyBits)} bits (${label})`;
+  }
+
+  generateBtn.addEventListener('click', () => {
+    const result = generatePassword();
+    if (!result) {
+      output.textContent = '••••••••••••••••';
+      meter.style.width = '0%';
+      meterLabel.textContent = 'Entropía: —';
+      return;
+    }
+    output.textContent = result.password;
+    updateMeter(result.poolSize, result.length);
+    copyBtn.textContent = 'Copiar';
+    copyBtn.classList.remove('copied');
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    const text = output.textContent;
+    if (text.includes('•')) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copiado';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.textContent = 'Copiar';
+        copyBtn.classList.remove('copied');
+      }, 1500);
+    } catch (e) {
+      errorMsg.textContent = 'No se pudo copiar automáticamente.';
+    }
+  });
+
+  // Generación inicial
+  generateBtn.click();
+</script>
+
+</body>
+</html>

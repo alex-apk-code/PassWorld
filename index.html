@@ -3,13 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Generador de contraseñas</title>
-<style>
-  @font-face {
-    font-family: 'JetBrains Mono';
-    src: local('JetBrains Mono');
-  }
+<title>PassWorld — Generador de contraseñas</title>
+<meta name="description" content="Generador de contraseñas aleatorias con longitud, tipos de carácter y entropía configurables. Todo se ejecuta en tu navegador, nada se envía a ningún servidor.">
 
+<!-- Open Graph / Reddit / redes sociales -->
+<meta property="og:title" content="PassWorld — Generador de contraseñas">
+<meta property="og:description" content="Genera contraseñas seguras al instante. Configura longitud, tipos de carácter y mira la entropía en tiempo real.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://alex-apk-code.github.io/PassWorld/og-image.png">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230D1117%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%2339D353%22 font-family=%22monospace%22>%23</text></svg>">
+
+<style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -79,6 +84,21 @@
     white-space: nowrap;
   }
 
+  #output span {
+    display: inline-block;
+    opacity: 0;
+    animation: charFade 0.25s forwards;
+  }
+
+  @keyframes charFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #output span { animation: none; opacity: 1; }
+  }
+
   button {
     font-family: inherit;
     cursor: pointer;
@@ -120,7 +140,7 @@
   .meter-label {
     font-size: 11px;
     color: var(--text-dim);
-    margin-bottom: 28px;
+    margin-bottom: 20px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
@@ -150,7 +170,16 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-bottom: 28px;
+    margin-bottom: 8px;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .checks.error-state {
+    border-color: var(--weak);
+    background: rgba(248, 81, 73, 0.06);
   }
 
   .check {
@@ -169,8 +198,31 @@
     cursor: pointer;
   }
 
+  .field-extra {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    cursor: pointer;
+  }
+
+  .field-extra input {
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
   #generate-btn {
-    width: 100%;
+    flex: 1;
     padding: 14px;
     font-size: 14px;
     font-weight: 600;
@@ -185,11 +237,93 @@
     background: #257A38;
   }
 
+  #multi-btn {
+    padding: 14px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
   .error-msg {
     font-size: 12px;
     color: var(--weak);
-    margin-top: 10px;
     min-height: 14px;
+    margin-bottom: 4px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 24px 0 10px;
+    border-top: 1px solid var(--panel-border);
+    padding-top: 16px;
+  }
+
+  #history {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #010409;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    gap: 8px;
+  }
+
+  .history-item .pw {
+    color: var(--text);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .history-item button {
+    font-size: 11px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+  }
+
+  #multi-results {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 16px;
+  }
+
+  #multi-results.visible {
+    display: flex;
+  }
+
+  .multi-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #010409;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .multi-item .pw {
+    color: var(--accent);
+    font-size: 14px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .multi-item button {
+    font-size: 11px;
+    padding: 4px 8px;
+    flex-shrink: 0;
   }
 </style>
 </head>
@@ -214,7 +348,7 @@
     <input type="range" id="length" min="4" max="64" value="16">
   </div>
 
-  <div class="checks">
+  <div class="checks" id="checks-container">
     <label class="check">
       <input type="checkbox" id="lower" checked>
       Minúsculas (a-z)
@@ -233,8 +367,23 @@
     </label>
   </div>
 
-  <button id="generate-btn">Generar</button>
+  <label class="field-extra">
+    <input type="checkbox" id="exclude-ambiguous">
+    Excluir caracteres ambiguos (0, O, l, 1, I)
+  </label>
+
+  <div class="btn-row">
+    <button id="generate-btn">Generar</button>
+    <button id="multi-btn" title="Generar 5 opciones">×5</button>
+  </div>
   <div class="error-msg" id="error"></div>
+
+  <div id="multi-results"></div>
+
+  <div id="history-section" style="display:none;">
+    <div class="section-label">Historial de esta sesión</div>
+    <div id="history"></div>
+  </div>
 </div>
 
 <script>
@@ -245,14 +394,22 @@
     symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
   };
 
+  const AMBIGUOUS = '0Ol1I';
+
   const lengthInput = document.getElementById('length');
   const lengthValue = document.getElementById('length-value');
   const output = document.getElementById('output');
   const copyBtn = document.getElementById('copy-btn');
   const generateBtn = document.getElementById('generate-btn');
+  const multiBtn = document.getElementById('multi-btn');
   const errorMsg = document.getElementById('error');
   const meter = document.getElementById('meter');
   const meterLabel = document.getElementById('meter-label');
+  const checksContainer = document.getElementById('checks-container');
+  const excludeAmbiguous = document.getElementById('exclude-ambiguous');
+  const historySection = document.getElementById('history-section');
+  const historyList = document.getElementById('history');
+  const multiResults = document.getElementById('multi-results');
 
   const checks = {
     lower: document.getElementById('lower'),
@@ -261,14 +418,26 @@
     symbols: document.getElementById('symbols')
   };
 
+  const HISTORY_MAX = 5;
+  let history = [];
+
   lengthInput.addEventListener('input', () => {
     lengthValue.textContent = lengthInput.value;
+    generateAndRender(); // regenerar automáticamente al mover el slider
   });
+
+  Object.values(checks).forEach(cb => {
+    cb.addEventListener('change', () => generateAndRender());
+  });
+  excludeAmbiguous.addEventListener('change', () => generateAndRender());
 
   function buildPool() {
     let pool = '';
     for (const key in checks) {
       if (checks[key].checked) pool += SETS[key];
+    }
+    if (excludeAmbiguous.checked) {
+      pool = pool.split('').filter(c => !AMBIGUOUS.includes(c)).join('');
     }
     return pool;
   }
@@ -286,10 +455,8 @@
 
   function generatePassword() {
     const pool = buildPool();
-    errorMsg.textContent = '';
 
     if (pool.length === 0) {
-      errorMsg.textContent = 'Selecciona al menos un tipo de carácter.';
       return null;
     }
 
@@ -301,52 +468,155 @@
     return { password: result, poolSize: pool.length, length };
   }
 
-  function updateMeter(poolSize, length) {
-    const entropyBits = length * Math.log2(poolSize || 1);
-    const pct = Math.min(100, (entropyBits / 128) * 100);
-    meter.style.width = pct + '%';
-
-    let label, color;
-    if (entropyBits < 40) { label = 'débil'; color = 'var(--weak)'; }
-    else if (entropyBits < 80) { label = 'moderada'; color = 'var(--mid)'; }
-    else { label = 'fuerte'; color = 'var(--accent)'; }
-
-    meter.style.background = color;
-    meterLabel.textContent = `Entropía: ${Math.round(entropyBits)} bits (${label})`;
+  function computeEntropy(poolSize, length) {
+    return length * Math.log2(poolSize || 1);
   }
 
-  generateBtn.addEventListener('click', () => {
+  function entropyLabel(bits) {
+    if (bits < 40) return { label: 'débil', color: 'var(--weak)' };
+    if (bits < 80) return { label: 'moderada', color: 'var(--mid)' };
+    return { label: 'fuerte', color: 'var(--accent)' };
+  }
+
+  function renderOutput(password) {
+    output.innerHTML = '';
+    password.split('').forEach((char, i) => {
+      const span = document.createElement('span');
+      span.textContent = char;
+      span.style.animationDelay = (i * 0.012) + 's';
+      output.appendChild(span);
+    });
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    if (msg) {
+      checksContainer.classList.add('error-state');
+    } else {
+      checksContainer.classList.remove('error-state');
+    }
+  }
+
+  function addToHistory(password) {
+    history.unshift(password);
+    if (history.length > HISTORY_MAX) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (history.length === 0) {
+      historySection.style.display = 'none';
+      return;
+    }
+    historySection.style.display = 'block';
+    historyList.innerHTML = '';
+    history.forEach(pw => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+
+      const pwSpan = document.createElement('span');
+      pwSpan.className = 'pw';
+      pwSpan.textContent = pw;
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Copiar';
+      btn.addEventListener('click', () => copyText(pw, btn));
+
+      item.appendChild(pwSpan);
+      item.appendChild(btn);
+      historyList.appendChild(item);
+    });
+  }
+
+  async function copyText(text, btnEl) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = btnEl.textContent;
+      btnEl.textContent = 'Copiado';
+      btnEl.classList.add('copied');
+      setTimeout(() => {
+        btnEl.textContent = original;
+        btnEl.classList.remove('copied');
+      }, 1200);
+    } catch (e) {
+      showError('No se pudo copiar automáticamente.');
+    }
+  }
+
+  function generateAndRender() {
+    multiResults.classList.remove('visible');
+    multiResults.innerHTML = '';
+
     const result = generatePassword();
     if (!result) {
       output.textContent = '••••••••••••••••';
       meter.style.width = '0%';
       meterLabel.textContent = 'Entropía: —';
+      showError('Selecciona al menos un tipo de carácter.');
       return;
     }
-    output.textContent = result.password;
-    updateMeter(result.poolSize, result.length);
-    copyBtn.textContent = 'Copiar';
-    copyBtn.classList.remove('copied');
-  });
+    showError('');
+    renderOutput(result.password);
 
-  copyBtn.addEventListener('click', async () => {
+    const bits = computeEntropy(result.poolSize, result.length);
+    const { label, color } = entropyLabel(bits);
+    meter.style.width = Math.min(100, (bits / 128) * 100) + '%';
+    meter.style.background = color;
+    meterLabel.textContent = `Entropía: ${Math.round(bits)} bits (${label})`;
+
+    addToHistory(result.password);
+  }
+
+  function generateMultiple() {
+    const pool = buildPool();
+    if (pool.length === 0) {
+      showError('Selecciona al menos un tipo de carácter.');
+      return;
+    }
+    showError('');
+
+    multiResults.innerHTML = '';
+    multiResults.classList.add('visible');
+
+    for (let i = 0; i < 5; i++) {
+      const result = generatePassword();
+      const item = document.createElement('div');
+      item.className = 'multi-item';
+
+      const pwSpan = document.createElement('span');
+      pwSpan.className = 'pw';
+      pwSpan.textContent = result.password;
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Usar';
+      btn.addEventListener('click', () => {
+        renderOutput(result.password);
+        const bits = computeEntropy(result.poolSize, result.length);
+        const { label, color } = entropyLabel(bits);
+        meter.style.width = Math.min(100, (bits / 128) * 100) + '%';
+        meter.style.background = color;
+        meterLabel.textContent = `Entropía: ${Math.round(bits)} bits (${label})`;
+        addToHistory(result.password);
+        multiResults.classList.remove('visible');
+      });
+
+      item.appendChild(pwSpan);
+      item.appendChild(btn);
+      multiResults.appendChild(item);
+    }
+  }
+
+  generateBtn.addEventListener('click', generateAndRender);
+  multiBtn.addEventListener('click', generateMultiple);
+
+  copyBtn.addEventListener('click', () => {
     const text = output.textContent;
     if (text.includes('•')) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      copyBtn.textContent = 'Copiado';
-      copyBtn.classList.add('copied');
-      setTimeout(() => {
-        copyBtn.textContent = 'Copiar';
-        copyBtn.classList.remove('copied');
-      }, 1500);
-    } catch (e) {
-      errorMsg.textContent = 'No se pudo copiar automáticamente.';
-    }
+    copyText(text, copyBtn);
   });
 
   // Generación inicial
-  generateBtn.click();
+  generateAndRender();
 </script>
 
 </body>
